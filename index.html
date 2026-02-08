@@ -1,616 +1,675 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Display Editor - Grid & Layers</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; background: #f3f4f6; }
-.container { display: flex; flex-direction: column; height: 100vh; position: relative; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Display Editor Pro</title>
+    <style>
+        :root { --primary: #2563eb; --danger: #dc2626; --bg: #f3f4f6; --border: #d1d5db; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; overflow: hidden; background: var(--bg); color: #1f2937; }
+        
+        .container { display: flex; flex-direction: column; height: 100vh; }
+        
+        .toolbar { background: white; border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; gap: 12px; align-items: center; }
+        
+        .btn { padding: 8px 14px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; background: white; }
+        .btn:hover { background: #f9fafb; border-color: #9ca3af; }
+        .btn-primary { background: var(--primary); color: white; border: none; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-danger { color: var(--danger); }
+        .btn-danger:hover { background: #fef2f2; border-color: var(--danger); }
 
-/* Toolbar */
-.toolbar { background: white; border-bottom: 1px solid #d1d5db; padding: 8px 16px; display: flex; gap: 12px; align-items: center; z-index: 10; }
-.toolbar-label { font-size: 13px; font-weight: 600; color: #4b5563; }
+        .main-content { flex: 1; display: flex; overflow: hidden; position: relative; }
+        
+        .panel { background: white; width: 320px; border-right: 1px solid var(--border); overflow-y: auto; transition: transform 0.3s ease, width 0.3s ease; flex-shrink: 0; z-index: 30; }
+        .panel-right { border-right: none; border-left: 1px solid var(--border); }
+        
+        .panel.closed { width: 0; transform: translateX(-100%); }
+        .panel-right.closed { width: 0; transform: translateX(100%); }
 
-.btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 500; transition: background 0.2s; }
-.btn-primary { background: #2563eb; color: white; min-width: 120px; }
-.btn-primary:hover { background: #1d4ed8; }
-.btn-success { background: #16a34a; color: white; min-width: 120px; }
-.btn-success:hover { background: #15803d; }
-.btn-danger { background: #dc2626; color: white; }
-.btn-danger:hover { background: #b91c1c; }
-.btn-ghost { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; min-width: 60px; }
-.btn-ghost:hover { background: #e5e7eb; }
+        .canvas-area { flex: 1; background: #cbd5e1; display: flex; align-items: center; justify-content: center; overflow: auto; position: relative; }
+        .canvas-wrapper { background: white; box-shadow: 0 20px 50px rgba(0,0,0,0.15); border-radius: 4px; }
+        canvas { display: block; cursor: crosshair; touch-action: none; outline: none; }
 
-.main-content { flex: 1; display: flex; overflow: hidden; position: relative; }
+        .toggle-handle { position: absolute; top: 50%; transform: translateY(-50%); width: 24px; height: 48px; background: white; border: 1px solid var(--border); z-index: 40; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: left 0.3s ease, right 0.3s ease; }
+        
+        #toggleLeft { left: 320px; }
+        #toggleRight { right: 320px; }
 
-/* Pannelli */
-.panel { background: white; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: visible; display: flex; flex-direction: column; position: relative; }
-.panel-left { width: 300px; border-right: 1px solid #d1d5db; }
-.panel-left.closed { width: 0; border-right: 0; }
-.panel-right { width: 300px; border-left: 1px solid #d1d5db; }
-.panel-right.closed { width: 0; border-left: 0; }
-.panel-content { padding: 16px; min-width: 300px; overflow-y: auto; flex: 1; height: 100%; }
+        .panel.closed + #toggleLeft { left: 0; }
+        .panel-right.closed + #toggleRight { right: 0; }
 
-.toggle-btn { background: #fff; border: 1px solid #d1d5db; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 24px; height: 48px; position: absolute; top: 50%; transform: translateY(-50%); z-index: 20; border-radius: 4px; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
-#toggleLeftBtn { right: -12px; } 
-#toggleRightBtn { left: -12px; } 
+        .panel-section { padding: 20px; border-bottom: 1px solid #f3f4f6; }
+        h3 { font-size: 11px; text-transform: uppercase; color: #6b7280; margin-bottom: 12px; letter-spacing: 0.05em; }
+        
+        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+        input[type="text"], input[type="number"], select, textarea { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; margin-bottom: 10px; }
+        
+        .icon-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .asset-item { border: 1px solid #e5e7eb; border-radius: 4px; padding: 4px; position: relative; cursor: pointer; background: #f9fafb; }
+        .asset-item img { width: 100%; aspect-ratio: 1; object-fit: contain; }
+        .delete-btn { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; z-index: 5; display: flex; align-items: center; justify-content: center; }
 
-.canvas-area { flex: 1; background: #e5e7eb; padding: 40px; display: flex; align-items: center; justify-content: center; overflow: auto; position: relative; }
-.canvas-wrapper { background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.1); line-height: 0; outline: none; position: relative; }
-#canvas { cursor: crosshair; touch-action: none; background: #fff; outline: none; }
+        .upload-zone { border: 2px dashed var(--border); padding: 15px; text-align: center; border-radius: 8px; cursor: pointer; color: #6b7280; font-size: 12px; margin-bottom: 10px; transition: all 0.2s; }
+        .upload-zone:hover { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
+        
+        .flex-row { display: flex; gap: 8px; align-items: center; }
+        .control-group { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+        .control-group input[type="range"] { flex: 1; margin: 0; }
+        .control-group input[type="number"] { width: 75px; margin: 0; flex-shrink: 0; }
+        
+        .empty-msg { text-align: center; color: #9ca3af; padding: 40px 20px; font-size: 14px; }
+        .bg-preview { width: 60px; height: 60px; margin-top: 10px; }
 
-/* Controlli Griglia */
-.grid-controls { position: absolute; top: 16px; right: 16px; z-index: 100; display: flex; gap: 8px; }
-.btn-grid { background: white; border: 1px solid #d1d5db; padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-.btn-grid.active { background: #2563eb; color: white; border-color: #2563eb; }
+        .switch-container { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
 
-h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; color: #6b7280; border-bottom: 1px solid #f3f4f6; padding-bottom: 4px; }
-label { display: block; font-size: 11px; font-weight: 600; margin-bottom: 4px; color: #4b5563; }
-.mb-4 { margin-bottom: 20px; }
-input[type="text"], input[type="number"], textarea, select { width: 100%; border: 1px solid #d1d5db; border-radius: 4px; padding: 6px; font-size: 12px; outline: none; }
-textarea { resize: vertical; min-height: 80px; font-family: inherit; }
-.upload-btn { width: 100%; border: 2px dashed #d1d5db; border-radius: 6px; padding: 12px; cursor: pointer; text-align: center; font-size: 12px; color: #6b7280; transition: all 0.2s; }
-.upload-btn:hover { border-color: #2563eb; color: #2563eb; background: #f0f7ff; }
-
-.icon-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
-.icon-item { position: relative; border: 1px solid #e5e7eb; border-radius: 4px; background: #fff; padding: 4px; cursor: pointer; }
-.icon-item img { width: 100%; height: 60px; object-fit: contain; }
-.delete-icon { position: absolute; top: -6px; right: -6px; background: #dc2626; color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-
-.divider { height: 1px; background: #e5e7eb; margin: 16px 0; }
-.flex-gap { display: flex; gap: 8px; align-items: center; }
-.empty-state { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 40px; }
-.prop-group { margin-bottom: 16px; }
-.input-sync { display: flex; align-items: center; gap: 8px; }
-.input-sync input[type="range"] { flex: 1; }
-.input-sync input[type="number"] { width: 70px; text-align: center; }
-
-/* Layer controls */
-.layer-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 16px; }
-.btn-layer { background: #f3f4f6; border: 1px solid #d1d5db; padding: 8px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.btn-layer:hover { background: #e5e7eb; }
-.btn-layer svg { width: 16px; height: 16px; fill: #4b5563; }
-
-.reset-zone { position: absolute; left: 16px; bottom: 16px; z-index: 100; }
-.btn-reset { background: #dc2626; color: white; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4); cursor: pointer; border: none; transition: transform 0.2s, background 0.2s; }
-.btn-reset:hover { background: #b91c1c; transform: scale(1.1); }
-.btn-reset svg { width: 20px; height: 20px; fill: currentColor; }
-
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
-.modal { background: white; padding: 24px; border-radius: 8px; max-width: 400px; width: 90%; text-align: center; }
-.modal h4 { margin-bottom: 12px; color: #111827; }
-.modal p { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
-
-.base-img-preview { position: relative; margin-top: 10px; border: 1px solid #d1d5db; padding: 4px; border-radius: 4px; }
-</style>
+        .shortcut-hint { font-size: 10px; color: #9ca3af; margin-top: 4px; font-style: italic; }
+    </style>
 </head>
 <body>
 
 <div class="container">
-  <div class="toolbar">
-    <span class="toolbar-label">Esporta:</span>
-    <div class="flex-gap">
-      <button class="btn btn-ghost" onclick="app.exportImage('png')">PNG</button>
-      <button class="btn btn-ghost" onclick="app.exportImage('jpg')">JPG</button>
-    </div>
-    <div style="flex:1"></div>
-    <div class="flex-gap">
-      <button class="btn btn-success" onclick="app.exportProject()">Salva Progetto</button>
-      <button class="btn btn-primary" onclick="document.getElementById('importInput').click()">Carica Progetto</button>
-    </div>
-    <input type="file" id="importInput" accept=".json" hidden onchange="app.importProject(event)">
-  </div>
-
-  <div class="main-content">
-    <div class="panel panel-left" id="leftPanel">
-      <div class="panel-content">
-        <h3>Sfondo / Maschera</h3>
-        <div id="baseImageContainer" class="mb-4">
-          <button class="upload-btn" onclick="document.getElementById('baseImageInput').click()">Carica Immagine Base</button>
+    <div class="toolbar">
+        <div class="flex-row">
+            <button class="btn" onclick="app.exportImage('png')">Esporta PNG</button>
+            <button class="btn" onclick="app.exportImage('jpg')">Esporta JPG</button>
         </div>
-        <input type="file" id="baseImageInput" hidden accept="image/*" onchange="app.handleBaseImageUpload(event)">
-
-        <h3>Asset</h3>
-        <div class="flex-gap mb-4" style="flex-wrap: wrap;">
-          <button class="btn btn-primary" style="min-width: 80px;" onclick="app.addTextToCanvas()">+ Testo</button>
-          <button class="btn btn-primary" style="min-width: 80px;" onclick="app.addShapeToCanvas()">+ Forma</button>
-        </div>
-
-        <h3>Icone</h3>
-        <button class="upload-btn" onclick="document.getElementById('iconInput').click()">+ Aggiungi a Libreria</button>
-        <input type="file" id="iconInput" hidden accept="image/*" multiple onchange="app.handleIconUpload(event)">
-        <div id="iconLibrary" class="icon-grid"></div>
-
-        <div class="divider"></div>
-        <h3>Font Caricati</h3>
-        <button class="upload-btn" onclick="document.getElementById('fontInput').click()">Carica Font</button>
-        <input type="file" id="fontInput" hidden accept=".ttf,.woff,.woff2" multiple onchange="app.handleFontUpload(event)">
-      </div>
-      <button id="toggleLeftBtn" class="toggle-btn" onclick="app.toggleLeftPanel()">◀</button>
+        <div style="flex:1"></div>
+        <button class="btn" onclick="app.saveProject()">Salva Progetto</button>
+        <button class="btn btn-primary" onclick="document.getElementById('loadInput').click()">Carica</button>
+        <input type="file" id="loadInput" hidden accept=".json" onchange="app.loadProject(event)">
     </div>
 
-    <div class="canvas-area">
-      <div class="grid-controls">
-        <button id="gridToggle" class="btn-grid" onclick="app.toggleGrid()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
-          Griglia: OFF
-        </button>
-      </div>
+    <div class="main-content">
+        <aside class="panel" id="panelLeft"></aside>
+        <div id="toggleLeft" class="toggle-handle" onclick="app.togglePanel('panelLeft')">◀</div>
 
-      <div class="canvas-wrapper" tabindex="0" id="canvasWrapper">
-        <canvas id="canvas" width="800" height="600"></canvas>
-      </div>
-      
-      <div class="reset-zone">
-        <button class="btn-reset" onclick="app.showResetModal()" title="Resetta tutto (Elementi + Asset)">
-          <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-        </button>
-      </div>
-    </div>
+        <main class="canvas-area">
+            <div class="canvas-wrapper">
+                <canvas id="editorCanvas" tabindex="0"></canvas>
+            </div>
+        </main>
 
-    <div class="panel panel-right" id="rightPanel">
-      <button id="toggleRightBtn" class="toggle-btn" onclick="app.toggleRightPanel()">▶</button>
-      <div class="panel-content">
-        <h3>Proprietà Elemento</h3>
-        <div id="propertiesPanel">
-          <p class="empty-state">Seleziona un elemento</p>
-        </div>
-      </div>
+        <aside class="panel panel-right" id="panelRight">
+            <div id="propsContainer">
+                <div class="empty-msg">Seleziona un elemento sul canvas per modificarlo</div>
+            </div>
+        </aside>
+        <div id="toggleRight" class="toggle-handle" onclick="app.togglePanel('panelRight')">▶</div>
     </div>
-  </div>
-</div>
-
-<div id="resetModal" class="modal-overlay">
-  <div class="modal">
-    <h4>Vuoi resettare tutto?</h4>
-    <p>Questa azione cancellerà <strong>tutti gli elementi</strong> sul canvas, lo sfondo e <strong>tutti gli asset</strong> (icone e font) caricati.</p>
-    <div class="flex-gap" style="justify-content: center;">
-      <button class="btn btn-ghost" onclick="app.hideResetModal()">Annulla</button>
-      <button class="btn btn-danger" onclick="app.hardReset()">Sì, cancella tutto</button>
-    </div>
-  </div>
 </div>
 
 <script>
 const app = {
-  baseImage: null,
-  iconLibrary: [],
-  defaultFonts: ['Arial', 'Verdana', 'Helvetica', 'Times New Roman', 'Courier New'],
-  fonts: [],
-  elements: [],
-  selectedId: null,
-  dragging: false,
-  dragOffset: { x: 0, y: 0 },
-  gridEnabled: false,
-  gridSize: 20,
-  
-  init() {
-    this.canvas = document.getElementById('canvas');
-    this.ctx = this.canvas.getContext('2d');
-    this.wrapper = document.getElementById('canvasWrapper');
-    this.fonts = [...this.defaultFonts];
-    
-    this.canvas.addEventListener('mousedown', (e) => this.handleDown(e));
-    window.addEventListener('mousemove', (e) => this.handleMove(e));
-    window.addEventListener('mouseup', () => this.handleUp());
-    window.addEventListener('keydown', (e) => this.handleKey(e));
-    
-    this.render();
-  },
+    canvas: null,
+    ctx: null,
+    elements: [],
+    selectedId: null,
+    bgImage: null,
+    bgThumb: null,
+    icons: [],
+    isDragging: false,
+    offset: { x: 0, y: 0 },
+    fonts: ['Arial', 'Verdana', 'Georgia', 'Courier New', 'Inter', 'Serif', 'Sans-serif'],
+    showGrid: false,
+    gridSize: 20,
 
-  toggleGrid() {
-    this.gridEnabled = !this.gridEnabled;
-    const btn = document.getElementById('gridToggle');
-    btn.classList.toggle('active', this.gridEnabled);
-    btn.innerHTML = this.gridEnabled ? 
-      `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg> Griglia: ON` : 
-      `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg> Griglia: OFF`;
-    this.render();
-  },
+    init() {
+        this.canvas = document.getElementById('editorCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.resizeCanvas(800, 600);
+        this.setupLibraryUI();
 
-  drawGrid() {
-    if (!this.gridEnabled) return;
-    this.ctx.save();
-    this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-    this.ctx.lineWidth = 0.5;
+        this.canvas.addEventListener('mousedown', e => this.onStart(e));
+        window.addEventListener('mousemove', e => this.onMove(e));
+        window.addEventListener('mouseup', () => this.onEnd());
 
-    for (let x = 0; x <= this.canvas.width; x += this.gridSize) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, this.canvas.height);
-      this.ctx.stroke();
-    }
-    for (let y = 0; y <= this.canvas.height; y += this.gridSize) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(0, y);
-      this.ctx.lineTo(this.canvas.width, y);
-      this.ctx.stroke();
-    }
-    this.ctx.restore();
-  },
+        this.canvas.addEventListener('touchstart', e => this.onStart(e.touches[0]), {passive: false});
+        window.addEventListener('touchmove', e => this.onMove(e.touches[0]), {passive: false});
+        window.addEventListener('touchend', () => this.onEnd());
 
-  render(isExport = false) {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    
-    // Sfondo
-    if (this.baseImage) {
-      this.ctx.drawImage(this.baseImage, 0, 0, this.canvas.width, this.canvas.height);
-    }
+        window.addEventListener('keydown', e => this.onKeyDown(e));
 
-    // Disegna la griglia solo in modalità editor
-    if (!isExport) {
-      this.drawGrid();
-    }
-    
-    // Elementi
-    this.elements.forEach(el => {
-      this.ctx.save();
-      this.ctx.translate(el.x, el.y);
-      this.ctx.rotate(el.rotation * Math.PI / 180);
-      const w = el.width * el.scale;
-      const h = el.height * el.scale;
+        this.render();
+    },
 
-      if (el.type === 'image' && el.imageObj) {
-        this.ctx.drawImage(el.imageObj, -w/2, -h/2, w, h);
-      } else if (el.type === 'text') {
-        this.renderText(el);
-      } else if (el.type === 'shape') {
-        this.renderShape(el, w, h);
-      }
-      
-      if (!isExport && this.selectedId === el.id) {
-        this.ctx.strokeStyle = '#2563eb';
-        this.ctx.lineWidth = 2;
-        this.ctx.setLineDash([5, 5]);
-        const b = this.getSelectionRect(el);
-        this.ctx.strokeRect(-b.w/2 - 5, -b.h/2 - 5, b.w + 10, b.h + 10);
-      }
-      this.ctx.restore();
-    });
-  },
+    setupLibraryUI() {
+        const left = document.getElementById('panelLeft');
+        left.innerHTML = `
+            <div class="panel-section">
+                <h3>Sfondo</h3>
+                <div id="bgAssetContainer">
+                    <div class="upload-zone" onclick="document.getElementById('bgInput').click()">Carica Sfondo</div>
+                </div>
+                <input type="file" id="bgInput" hidden accept="image/*" onchange="app.handleBgUpload(event)">
+            </div>
+            <div class="panel-section">
+                <h3>Caratteri</h3>
+                <div class="upload-zone" onclick="document.getElementById('fontInput').click()">Carica Font Personalizzato</div>
+                <input type="file" id="fontInput" hidden accept=".ttf,.otf,.woff,.woff2" onchange="app.handleFontUpload(event)">
+            </div>
+            <div class="panel-section">
+                <h3>Libreria Icone</h3>
+                <div class="upload-zone" onclick="document.getElementById('iconInput').click()">+ Aggiungi Icona</div>
+                <input type="file" id="iconInput" hidden accept="image/*" multiple onchange="app.handleIconLibrary(event)">
+                <div id="iconLibrary" class="icon-grid"></div>
+            </div>
+            <div class="panel-section">
+                <h3>Elementi</h3>
+                <div class="flex-row">
+                    <button class="btn btn-primary" style="flex:1" onclick="app.addText()">+ Testo</button>
+                    <button class="btn btn-primary" style="flex:1" onclick="app.addShape()">+ Forma</button>
+                </div>
+            </div>
+        `;
+        this.renderBgThumb();
+        this.renderLibrary();
+    },
 
-  renderText(el) {
-    const fontSize = el.fontSize * el.scale;
-    this.ctx.font = `${fontSize}px ${el.fontFamily}`;
-    this.ctx.fillStyle = el.fill;
-    this.ctx.textBaseline = 'middle';
-    const lines = el.text.split('\n');
-    const lineHeight = fontSize * (el.lineHeight || 1.2);
-    const totalHeight = lines.length * lineHeight;
-    
-    let maxWidth = 0;
-    lines.forEach(l => {
-      const w = this.ctx.measureText(l).width;
-      if (w > maxWidth) maxWidth = w;
-    });
+    resizeCanvas(w, h) {
+        this.canvas.width = w;
+        this.canvas.height = h;
+        this.render();
+    },
 
-    lines.forEach((line, i) => {
-      const yOffset = (i * lineHeight) - (totalHeight / 2) + (lineHeight / 2);
-      this.ctx.textAlign = el.textAlign;
-      let xOffset = 0;
-      if (el.textAlign === 'left') xOffset = -maxWidth / 2;
-      else if (el.textAlign === 'right') xOffset = maxWidth / 2;
-      
-      if (el.strokeWidth > 0) {
-        this.ctx.strokeStyle = el.stroke;
-        this.ctx.lineWidth = el.strokeWidth * el.scale;
-        this.ctx.strokeText(line, xOffset, yOffset);
-      }
-      this.ctx.fillText(line, xOffset, yOffset);
-    });
-  },
+    togglePanel(id) {
+        const el = document.getElementById(id);
+        const btn = document.getElementById(id === 'panelLeft' ? 'toggleLeft' : 'toggleRight');
+        el.classList.toggle('closed');
+        if(id === 'panelLeft') btn.innerText = el.classList.contains('closed') ? '▶' : '◀';
+        else btn.innerText = el.classList.contains('closed') ? '◀' : '▶';
+    },
 
-  renderShape(el, w, h) {
-    this.ctx.beginPath();
-    if (el.shapeType === 'line') {
-      this.ctx.moveTo(-w/2, 0);
-      this.ctx.lineTo(w/2, 0);
-      this.ctx.strokeStyle = el.stroke;
-      this.ctx.lineWidth = el.strokeWidth * el.scale;
-      this.ctx.stroke();
-    } else {
-      if (el.shapeType === 'circle') this.ctx.ellipse(0, 0, w/2, h/2, 0, 0, Math.PI * 2);
-      else this.ctx.roundRect(-w/2, -h/2, w, h, (el.borderRadius || 0) * el.scale);
-      
-      if (el.fillType === 'solid') {
-        this.ctx.fillStyle = el.fill;
-        this.ctx.fill();
-      } else if (el.fillType === 'gradient') {
-        let grd = el.gradientDir === 'horizontal' ? this.ctx.createLinearGradient(-w/2, 0, w/2, 0) : this.ctx.createLinearGradient(0, -h/2, 0, h/2);
-        grd.addColorStop(0, el.fill);
-        grd.addColorStop(1, el.fill2 || '#ffffff');
-        this.ctx.fillStyle = grd;
-        this.ctx.fill();
-      }
-      if (el.strokeWidth > 0) {
-        this.ctx.strokeStyle = el.stroke;
-        this.ctx.lineWidth = el.strokeWidth * el.scale;
+    drawGrid() {
+        if (!this.showGrid) return;
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
+        this.ctx.lineWidth = 0.5;
+        for (let x = 0; x <= this.canvas.width; x += this.gridSize) {
+            this.ctx.moveTo(x, 0); this.ctx.lineTo(x, this.canvas.height);
+        }
+        for (let y = 0; y <= this.canvas.height; y += this.gridSize) {
+            this.ctx.moveTo(0, y); this.ctx.lineTo(this.canvas.width, y);
+        }
         this.ctx.stroke();
-      }
-    }
-  },
+        this.ctx.restore();
+    },
 
-  getSelectionRect(el) {
-    if (el.type === 'image' || el.type === 'shape') return { w: el.width * el.scale, h: (el.shapeType === 'line' ? Math.max(el.strokeWidth, 20) : el.height) * el.scale };
-    const fontSize = el.fontSize * el.scale;
-    this.ctx.font = `${fontSize}px ${el.fontFamily}`;
-    const lines = el.text.split('\n');
-    let maxWidth = 0;
-    lines.forEach(l => maxWidth = Math.max(maxWidth, this.ctx.measureText(l).width));
-    return { w: maxWidth, h: lines.length * fontSize * (el.lineHeight || 1.2) };
-  },
+    render() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (this.bgImage) {
+            this.ctx.drawImage(this.bgImage, 0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            this.ctx.fillStyle = "#ffffff";
+            this.ctx.fillRect(0,0,this.canvas.width, this.canvas.height);
+        }
+        this.drawGrid();
+        this.elements.forEach(el => {
+            this.ctx.save();
+            this.ctx.translate(el.x, el.y);
+            this.ctx.rotate(el.rotation * Math.PI / 180);
+            this.ctx.globalAlpha = el.opacity || 1;
+            if (el.type === 'text') this.drawText(el);
+            else if (el.type === 'icon') {
+                const w = el.w * el.scale; const h = el.h * el.scale;
+                this.ctx.drawImage(el.img, -w/2, -h/2, w, h);
+            } else if (el.type === 'shape') this.drawShape(el);
+            if (this.selectedId === el.id) {
+                this.ctx.strokeStyle = '#2563eb'; this.ctx.lineWidth = 2; this.ctx.setLineDash([5, 5]);
+                const bounds = this.getBounds(el);
+                this.ctx.strokeRect(-bounds.w/2 - 5, -bounds.h/2 - 5, bounds.w + 10, bounds.h + 10);
+            }
+            this.ctx.restore();
+        });
+    },
 
-  handleDown(e) {
-    const rect = this.canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
-    const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
-    let hit = false;
-    for (let i = this.elements.length - 1; i >= 0; i--) {
-      const el = this.elements[i];
-      const b = this.getSelectionRect(el);
-      if (mx >= el.x - b.w/2 && mx <= el.x + b.w/2 && my >= el.y - b.h/2 && my <= el.y + b.h/2) {
-        this.selectedId = el.id;
-        this.dragging = true;
-        this.dragOffset = { x: mx - el.x, y: my - el.y };
-        hit = true; break;
-      }
-    }
-    if (!hit) this.selectedId = null;
-    this.updatePropertiesUI();
-    this.render();
-  },
+    drawText(el) {
+        const fontSize = el.fontSize * el.scale;
+        this.ctx.font = `${el.fontWeight || 'normal'} ${fontSize}px ${el.fontFamily}`;
+        this.ctx.textBaseline = 'middle';
+        const lines = el.text.split('\n');
+        const lineHeight = fontSize * (el.lineHeight || 1.2);
+        const totalH = lines.length * lineHeight;
+        const bounds = this.getBounds(el);
+        const maxW = bounds.w;
+        lines.forEach((line, i) => {
+            const y = (i * lineHeight) - (totalH / 2) + (lineHeight / 2);
+            let xOffset = 0;
+            if (el.align === 'left') { xOffset = -maxW / 2; this.ctx.textAlign = 'left'; }
+            else if (el.align === 'right') { xOffset = maxW / 2; this.ctx.textAlign = 'right'; }
+            else { xOffset = 0; this.ctx.textAlign = 'center'; }
+            if (el.strokeWidth > 0) {
+                this.ctx.strokeStyle = el.stroke; this.ctx.lineWidth = el.strokeWidth * el.scale;
+                this.ctx.lineJoin = 'round'; this.ctx.strokeText(line, xOffset, y);
+            }
+            this.ctx.fillStyle = el.color; this.ctx.fillText(line, xOffset, y);
+        });
+    },
 
-  handleMove(e) {
-    if (!this.dragging || !this.selectedId) return;
-    const rect = this.canvas.getBoundingClientRect();
-    let mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
-    let my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
-    
-    const el = this.elements.find(item => item.id === this.selectedId);
-    
-    let targetX = mx - this.dragOffset.x;
-    let targetY = my - this.dragOffset.y;
+    drawShape(el) {
+        const w = el.w * el.scale; const h = el.h * el.scale;
+        this.ctx.beginPath();
+        if (el.shapeType === 'rect') {
+            const r = (el.borderRadius || 0) * el.scale; this.ctx.roundRect(-w/2, -h/2, w, h, r);
+        } else if (el.shapeType === 'circle') this.ctx.arc(0, 0, w/2, 0, Math.PI * 2);
+        else if (el.shapeType === 'line') { this.ctx.moveTo(-w/2, 0); this.ctx.lineTo(w/2, 0); }
+        if (el.shapeType !== 'line' && el.fillType !== 'none') {
+            if (el.fillType === 'gradient') {
+                const grad = this.ctx.createLinearGradient(-w/2, 0, w/2, 0);
+                grad.addColorStop(0, el.color); grad.addColorStop(1, el.color2 || '#ffffff');
+                this.ctx.fillStyle = grad;
+            } else this.ctx.fillStyle = el.color;
+            this.ctx.fill();
+        }
+        if (el.strokeWidth > 0) {
+            this.ctx.strokeStyle = el.stroke; this.ctx.lineWidth = el.strokeWidth * el.scale;
+            this.ctx.stroke();
+        }
+    },
 
-    // Snap to grid
-    if (this.gridEnabled) {
-      targetX = Math.round(targetX / this.gridSize) * this.gridSize;
-      targetY = Math.round(targetY / this.gridSize) * this.gridSize;
-    }
+    getBounds(el) {
+        if (el.type === 'icon' || el.type === 'shape') return { w: el.w * el.scale, h: el.h * el.scale };
+        this.ctx.font = `${el.fontWeight || 'normal'} ${el.fontSize * el.scale}px ${el.fontFamily}`;
+        const lines = el.text.split('\n');
+        const maxW = Math.max(...lines.map(l => this.ctx.measureText(l).width));
+        return { w: maxW, h: lines.length * (el.fontSize * el.scale * (el.lineHeight || 1.2)) };
+    },
 
-    el.x = targetX;
-    el.y = targetY;
-    
-    this.render();
-    this.updatePositionInputs(el);
-  },
+    onStart(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+        const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+        let found = null;
+        for (let i = this.elements.length - 1; i >= 0; i--) {
+            const el = this.elements[i];
+            const b = this.getBounds(el);
+            if (mx > el.x - b.w/2 && mx < el.x + b.w/2 && my > el.y - b.h/2 && my < el.y + b.h/2) {
+                found = el; break;
+            }
+        }
+        this.selectedId = found ? found.id : null;
+        if (found) {
+            this.isDragging = true;
+            this.offset = { x: mx - found.x, y: my - found.y };
+            this.canvas.focus();
+        }
+        this.updatePropsUI();
+        this.render();
+    },
 
-  handleUp() { this.dragging = false; },
+    onMove(e) {
+        if (!this.isDragging || !this.selectedId) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+        const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+        const el = this.elements.find(i => i.id === this.selectedId);
+        let newX = mx - this.offset.x; let newY = my - this.offset.y;
+        if (this.showGrid) {
+            newX = Math.round(newX / this.gridSize) * this.gridSize;
+            newY = Math.round(newY / this.gridSize) * this.gridSize;
+        }
+        el.x = newX; el.y = newY;
+        this.render();
+        this.updateCoordsOnly();
+    },
 
-  handleKey(e) {
-    if (!this.selectedId || ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-    const el = this.elements.find(item => item.id === this.selectedId);
-    if (e.key === 'Delete' || e.key === 'Backspace') this.deleteSelected();
-    else if (e.key.startsWith('Arrow')) {
-      const s = e.shiftKey ? this.gridSize : 1;
-      if (e.key === 'ArrowLeft') el.x -= s;
-      if (e.key === 'ArrowRight') el.x += s;
-      if (e.key === 'ArrowUp') el.y -= s;
-      if (e.key === 'ArrowDown') el.y += s;
-      
-      if (this.gridEnabled) {
-        el.x = Math.round(el.x / this.gridSize) * this.gridSize;
-        el.y = Math.round(el.y / this.gridSize) * this.gridSize;
-      }
-      
-      e.preventDefault(); this.render(); this.updatePositionInputs(el);
-    }
-  },
+    onEnd() { this.isDragging = false; },
 
-  updatePositionInputs(el) {
-    const ix = document.getElementById('propX'), iy = document.getElementById('propY');
-    if (ix) ix.value = Math.round(el.x); if (iy) iy.value = Math.round(el.y);
-  },
+    onKeyDown(e) {
+        if (!this.selectedId) return;
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            if (e.key === 'Enter') document.activeElement.blur();
+            return;
+        }
+        const el = this.elements.find(i => i.id === this.selectedId);
+        if (!el) return;
+        const step = e.shiftKey ? (this.showGrid ? this.gridSize : 10) : 1;
+        let moved = false;
+        switch(e.key) {
+            case 'ArrowUp': el.y -= step; moved = true; break;
+            case 'ArrowDown': el.y += step; moved = true; break;
+            case 'ArrowLeft': el.x -= step; moved = true; break;
+            case 'ArrowRight': el.x += step; moved = true; break;
+            case 'Delete': case 'Backspace': this.deleteSelected(); return;
+        }
+        if (moved) {
+            e.preventDefault();
+            this.render();
+            this.updateCoordsOnly();
+        }
+    },
 
-  moveLayer(dir) {
-    if (!this.selectedId) return;
-    const idx = this.elements.findIndex(el => el.id === this.selectedId);
-    if (idx === -1) return;
+    addText() {
+        const id = Date.now();
+        this.elements.push({
+            id, type: 'text', text: 'Nuovo Testo', 
+            x: this.canvas.width/2, y: this.canvas.height/2, 
+            fontSize: 30, scale: 1.0, rotation: 0, 
+            color: '#000000', fontFamily: 'Arial', align: 'center',
+            stroke: '#ffffff', strokeWidth: 0, opacity: 1, lineHeight: 1.2
+        });
+        this.selectedId = id; this.updatePropsUI(); this.render();
+    },
 
-    if (dir === 'front') {
-      const el = this.elements.splice(idx, 1)[0];
-      this.elements.push(el);
-    } else if (dir === 'back') {
-      const el = this.elements.splice(idx, 1)[0];
-      this.elements.unshift(el);
-    } else if (dir === 'forward') {
-      if (idx < this.elements.length - 1) {
-        [this.elements[idx], this.elements[idx + 1]] = [this.elements[idx + 1], this.elements[idx]];
-      }
-    } else if (dir === 'backward') {
-      if (idx > 0) {
-        [this.elements[idx], this.elements[idx - 1]] = [this.elements[idx - 1], this.elements[idx]];
-      }
-    }
-    this.render();
-  },
+    addShape() {
+        const id = Date.now();
+        this.elements.push({
+            id, type: 'shape', shapeType: 'rect',
+            x: this.canvas.width/2, y: this.canvas.height/2,
+            w: 100, h: 100, scale: 1.0, rotation: 0, opacity: 1,
+            color: '#2563eb', color2: '#1d4ed8', fillType: 'solid',
+            stroke: '#000000', strokeWidth: 2, borderRadius: 0
+        });
+        this.selectedId = id; this.updatePropsUI(); this.render();
+    },
 
-  showResetModal() { document.getElementById('resetModal').style.display = 'flex'; },
-  hideResetModal() { document.getElementById('resetModal').style.display = 'none'; },
-  
-  hardReset() {
-    this.elements = [];
-    this.baseImage = null;
-    this.selectedId = null;
-    this.iconLibrary = [];
-    this.fonts = [...this.defaultFonts];
-    this.canvas.width = 800;
-    this.canvas.height = 600;
-    this.gridEnabled = false;
-    document.getElementById('gridToggle').classList.remove('active');
-    document.getElementById('gridToggle').innerText = 'Griglia: OFF';
-    this.updateBasePreview();
-    this.updateIconLibraryUI();
-    this.updatePropertiesUI();
-    this.render();
-    this.hideResetModal();
-  },
+    handleBgUpload(e) {
+        const file = e.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+                this.bgImage = img; this.bgThumb = ev.target.result;
+                this.resizeCanvas(img.width, img.height); this.renderBgThumb();
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    },
 
-  handleBaseImageUpload(e) {
-    const file = e.target.files[0]; if (!file) return;
-    const r = new FileReader();
-    r.onload = (ev) => {
-      const img = new Image();
-      img.onload = () => { this.baseImage = img; this.canvas.width = img.width; this.canvas.height = img.height; this.updateBasePreview(); this.render(); };
-      img.src = ev.target.result;
-    };
-    r.readAsDataURL(file);
-  },
+    renderBgThumb() {
+        const container = document.getElementById('bgAssetContainer');
+        if (!this.bgImage) {
+            container.innerHTML = `<div class="upload-zone" onclick="document.getElementById('bgInput').click()">Carica Sfondo</div>`;
+            return;
+        }
+        container.innerHTML = `<div class="asset-item bg-preview"><img src="${this.bgThumb}"><button class="delete-btn" onclick="app.removeBg()">✕</button></div>`;
+    },
 
-  updateBasePreview() {
-    const c = document.getElementById('baseImageContainer');
-    c.innerHTML = this.baseImage ? `<div class="base-img-preview"><img src="${this.baseImage.src}" style="max-width:100%"><button class="delete-icon" onclick="app.removeBaseImage()">✕</button></div>` : `<button class="upload-btn" onclick="document.getElementById('baseImageInput').click()">Carica Immagine Base</button>`;
-  },
+    removeBg() { this.bgImage = null; this.bgThumb = null; this.renderBgThumb(); this.render(); },
 
-  removeBaseImage() { this.baseImage = null; this.updateBasePreview(); this.render(); },
+    async handleFontUpload(e) {
+        const file = e.target.files[0]; if (!file) return;
+        const fontName = file.name.split('.')[0].replace(/\s/g, '-');
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            const fontFace = new FontFace(fontName, `url(${ev.target.result})`);
+            try {
+                const loaded = await fontFace.load(); document.fonts.add(loaded);
+                this.fonts.push(fontName); this.updatePropsUI();
+            } catch (err) { console.error(err); }
+        };
+        reader.readAsDataURL(file);
+    },
 
-  handleIconUpload(e) {
-    Array.from(e.target.files).forEach(file => {
-      const r = new FileReader();
-      r.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => { this.iconLibrary.push({ id: Date.now() + Math.random(), src: ev.target.result, obj: img }); this.updateIconLibraryUI(); };
-        img.src = ev.target.result;
-      };
-      r.readAsDataURL(file);
-    });
-  },
+    handleIconLibrary(event) {
+        const files = Array.from(event.target.files);
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    this.icons.push({ id: Date.now() + Math.random(), src: ev.target.result, img });
+                    this.renderLibrary();
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    },
 
-  updateIconLibraryUI() {
-    document.getElementById('iconLibrary').innerHTML = this.iconLibrary.map(i => `<div class="icon-item"><img src="${i.src}" onclick="app.addIconToCanvas('${i.id}')"><button class="delete-icon" onclick="app.removeIconFromLibrary('${i.id}')">✕</button></div>`).join('');
-  },
+    renderLibrary() {
+        const container = document.getElementById('iconLibrary'); if(!container) return;
+        container.innerHTML = this.icons.map(icon => `
+            <div class="asset-item" onclick="app.addIconToCanvas('${icon.id}')">
+                <img src="${icon.src}"><button class="delete-btn" onclick="event.stopPropagation(); app.removeLibraryIcon('${icon.id}')">✕</button>
+            </div>`).join('');
+    },
 
-  removeIconFromLibrary(id) { this.iconLibrary = this.iconLibrary.filter(i => i.id.toString() !== id.toString()); this.updateIconLibraryUI(); },
+    removeLibraryIcon(id) { this.icons = this.icons.filter(i => i.id != id); this.renderLibrary(); },
 
-  addIconToCanvas(id) {
-    const icon = this.iconLibrary.find(i => i.id.toString() === id.toString());
-    const newEl = { id: Date.now(), type: 'image', src: icon.src, imageObj: icon.obj, x: this.canvas.width / 2, y: this.canvas.height / 2, width: icon.obj.width, height: icon.obj.height, scale: 1.0, rotation: 0 };
-    this.elements.push(newEl); this.selectedId = newEl.id; this.render(); this.updatePropertiesUI();
-  },
+    addIconToCanvas(id) {
+        const icon = this.icons.find(i => i.id == id);
+        const elId = Date.now();
+        this.elements.push({
+            id: elId, type: 'icon', img: icon.img, src: icon.src,
+            x: this.canvas.width/2, y: this.canvas.height/2,
+            w: icon.img.width, h: icon.img.height, scale: 1.0, rotation: 0, opacity: 1
+        });
+        this.selectedId = elId; this.updatePropsUI(); this.render();
+    },
 
-  addTextToCanvas() {
-    const newEl = { id: Date.now(), type: 'text', text: 'Nuovo Testo', x: this.canvas.width / 2, y: this.canvas.height / 2, fontSize: 40, fontFamily: this.fonts[0], textAlign: 'center', lineHeight: 1.2, fill: '#000000', stroke: '#ffffff', strokeWidth: 0, scale: 1.0, rotation: 0 };
-    this.elements.push(newEl); this.selectedId = newEl.id; this.render(); this.updatePropertiesUI();
-  },
+    moveLayer(dir) {
+        if (!this.selectedId) return;
+        const index = this.elements.findIndex(i => i.id === this.selectedId);
+        if (dir === 'up' && index < this.elements.length - 1) {
+            [this.elements[index], this.elements[index + 1]] = [this.elements[index + 1], this.elements[index]];
+        } else if (dir === 'down' && index > 0) {
+            [this.elements[index], this.elements[index - 1]] = [this.elements[index - 1], this.elements[index]];
+        }
+        this.render();
+    },
 
-  addShapeToCanvas() {
-    const newEl = { id: Date.now(), type: 'shape', shapeType: 'rectangle', x: this.canvas.width / 2, y: this.canvas.height / 2, width: 100, height: 100, borderRadius: 0, fill: '#2563eb', fill2: '#1d4ed8', fillType: 'solid', gradientDir: 'horizontal', stroke: '#000000', strokeWidth: 2, scale: 1.0, rotation: 0 };
-    this.elements.push(newEl); this.selectedId = newEl.id; this.render(); this.updatePropertiesUI();
-  },
+    updateCoordsOnly() {
+        const el = this.elements.find(i => i.id === this.selectedId);
+        if (!el) return;
+        const ix = document.getElementById('inX');
+        const iy = document.getElementById('inY');
+        if(ix) ix.value = Math.round(el.x);
+        if(iy) iy.value = Math.round(el.y);
+    },
 
-  updatePropertiesUI() {
-    const el = this.elements.find(i => i.id === this.selectedId);
-    const p = document.getElementById('propertiesPanel');
-    if (!el) { p.innerHTML = `<p class="empty-state">Seleziona un elemento</p>`; return; }
-    
-    let html = `
-      <div class="prop-group">
-        <label>Ordine Livelli</label>
-        <div class="layer-controls">
-          <button class="btn-layer" onclick="app.moveLayer('front')" title="Porta in primo piano"><svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2zM12 5L5 12l7 7V5z"/></svg></button>
-          <button class="btn-layer" onclick="app.moveLayer('forward')" title="Porta avanti"><svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5H7z"/></svg></button>
-          <button class="btn-layer" onclick="app.moveLayer('backward')" title="Porta indietro"><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg></button>
-          <button class="btn-layer" onclick="app.moveLayer('back')" title="Porta in fondo"><svg viewBox="0 0 24 24"><path d="M19 11H5v2h14v-2zM12 19l7-7-7-7v14z"/></svg></button>
-        </div>
-      </div>
+    updatePropsUI() {
+        const el = this.elements.find(i => i.id === this.selectedId);
+        const container = document.getElementById('propsContainer');
+        if (!el) {
+            container.innerHTML = `<div class="empty-msg">Seleziona un elemento</div>`;
+            return;
+        }
 
-      <div class="prop-group"><label>Posizione X, Y</label><div class="flex-gap"><input type="number" id="propX" value="${Math.round(el.x)}" oninput="app.updateElProp('x', this.value)"> <input type="number" id="propY" value="${Math.round(el.y)}" oninput="app.updateElProp('y', this.value)"></div></div>
-      <div class="prop-group"><label>Scala / Rotazione</label><div class="input-sync mb-4"><input type="range" min="0.1" max="5" step="0.01" value="${el.scale}" oninput="app.updateElProp('scale', this.value)"></div><div class="input-sync"><input type="range" min="0" max="360" value="${el.rotation}" oninput="app.updateElProp('rotation', this.value)"></div></div>
-    `;
+        let html = `
+            <div class="panel-section">
+                <h3>Magnetismo Griglia</h3>
+                <div class="switch-container">
+                    <label>Attiva Griglia Magnetica</label>
+                    <label class="switch">
+                        <input type="checkbox" ${this.showGrid ? 'checked' : ''} onchange="app.showGrid = this.checked; app.render()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <label>Dimensione Griglia (px)</label>
+                <input type="number" value="${this.gridSize}" onblur="app.gridSize = parseInt(this.value) || 10; app.render()">
+            </div>
 
-    if (el.type === 'text') {
-      html += `<div class="prop-group"><label>Testo</label><textarea oninput="app.updateElProp('text', this.value)">${el.text}</textarea></div>
-               <div class="prop-group"><label>Font</label><select onchange="app.updateElProp('fontFamily', this.value)">${this.fonts.map(f => `<option value="${f}" ${f === el.fontFamily ? 'selected' : ''}>${f}</option>`).join('')}</select></div>`;
-    } else if (el.type === 'shape') {
-      html += `<div class="prop-group"><label>Tipo</label><select onchange="app.updateElProp('shapeType', this.value, true)"><option value="rectangle" ${el.shapeType === 'rectangle' ? 'selected' : ''}>Rettangolo</option><option value="circle" ${el.shapeType === 'circle' ? 'selected' : ''}>Cerchio</option><option value="line" ${el.shapeType === 'line' ? 'selected' : ''}>Linea</option></select></div>`;
-    }
-    html += `<button class="btn btn-danger" style="width:100%" onclick="app.deleteSelected()">Elimina</button>`;
-    p.innerHTML = html;
-  },
+            <div class="panel-section">
+                <h3>Trasformazione</h3>
+                <label>Posizione X, Y</label>
+                <div class="flex-row">
+                    <input type="number" id="inX" value="${Math.round(el.x)}" onblur="app.setProp('x', this.value)">
+                    <input type="number" id="inY" value="${Math.round(el.y)}" onblur="app.setProp('y', this.value)">
+                </div>
+                <div class="shortcut-hint">Sposta con frecce (Shift per +10px)</div>
 
-  updateElProp(prop, val, redrawUI = false) {
-    const el = this.elements.find(i => i.id === this.selectedId);
-    if (!el) return;
-    const n = parseFloat(val);
-    el[prop] = (isNaN(n) || val.toString().startsWith('#')) ? val : n;
-    if (redrawUI) this.updatePropertiesUI();
-    this.render();
-  },
+                <label style="margin-top:12px">Scala</label>
+                <div class="control-group">
+                    <input type="range" id="scaleSlider" min="0.01" max="5" step="0.01" value="${el.scale}" oninput="app.onSliderUpdate('scale', this.value)">
+                    <input type="number" id="scaleNum" value="${el.scale}" step="0.01" onblur="app.onNumberBlur('scale', this.value)">
+                </div>
+                <label>Rotazione (°)</label>
+                <div class="control-group">
+                    <input type="range" id="rotSlider" min="0" max="360" value="${el.rotation}" oninput="app.onSliderUpdate('rotation', this.value)">
+                    <input type="number" id="rotNum" value="${Math.round(el.rotation)}" onblur="app.onNumberBlur('rotation', this.value)">
+                </div>
+                <label>Opacità</label>
+                <div class="control-group">
+                    <input type="range" id="opacSlider" min="0" max="1" step="0.01" value="${el.opacity || 1}" oninput="app.onSliderUpdate('opacity', this.value)">
+                    <input type="number" id="opacNum" value="${el.opacity || 1}" step="0.01" onblur="app.onNumberBlur('opacity', this.value)">
+                </div>
+            </div>
 
-  deleteSelected() { this.elements = this.elements.filter(i => i.id !== this.selectedId); this.selectedId = null; this.render(); this.updatePropertiesUI(); },
-  exportProject() {
-    const d = { baseImage: this.baseImage?.src, canvasW: this.canvas.width, canvasH: this.canvas.height, iconLibrary: this.iconLibrary.map(i => ({ id: i.id, src: i.src })), elements: this.elements.map(({imageObj, ...rest}) => rest) };
-    const b = new Blob([JSON.stringify(d)], {type: 'application/json'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'progetto.json'; a.click();
-  },
+            <div class="panel-section">
+                <h3>Ordinamento</h3>
+                <div class="flex-row">
+                    <button class="btn" style="flex:1" onclick="app.moveLayer('up')">Porta Avanti</button>
+                    <button class="btn" style="flex:1" onclick="app.moveLayer('down')">Porta Indietro</button>
+                </div>
+            </div>
+        `;
 
-  async importProject(e) {
-    const file = e.target.files[0]; if (!file) return;
-    const r = new FileReader();
-    r.onload = async (ev) => {
-      const d = JSON.parse(ev.target.result);
-      this.canvas.width = d.canvasW || 800; this.canvas.height = d.canvasH || 600;
-      if (d.baseImage) { this.baseImage = await this.loadImage(d.baseImage); this.updateBasePreview(); }
-      this.iconLibrary = [];
-      for (const i of d.iconLibrary || []) { const img = await this.loadImage(i.src); this.iconLibrary.push({ ...i, obj: img }); }
-      this.updateIconLibraryUI();
-      this.elements = [];
-      for (const el of d.elements || []) { if (el.type === 'image') el.imageObj = await this.loadImage(el.src); this.elements.push(el); }
-      this.render(); this.updatePropertiesUI();
-    };
-    r.readAsText(file);
-  },
+        if (el.type === 'text') {
+            html += `
+                <div class="panel-section">
+                    <h3>Proprietà Testo</h3>
+                    <textarea onblur="app.setProp('text', this.value)">${el.text}</textarea>
+                    <label>Font</label>
+                    <select onchange="app.setProp('fontFamily', this.value)">
+                        ${this.fonts.map(f => `<option ${f === el.fontFamily ? 'selected' : ''}>${f}</option>`).join('')}
+                    </select>
+                    <label>Allineamento</label>
+                    <select onchange="app.setProp('align', this.value)">
+                        <option value="left" ${el.align === 'left' ? 'selected' : ''}>Sinistra</option>
+                        <option value="center" ${el.align === 'center' ? 'selected' : ''}>Centro</option>
+                        <option value="right" ${el.align === 'right' ? 'selected' : ''}>Destra</option>
+                    </select>
+                    <label>Interlinea</label>
+                    <input type="number" value="${el.lineHeight}" step="0.1" onblur="app.setProp('lineHeight', this.value)">
+                    <label>Colore Riempimento</label>
+                    <input type="color" value="${el.color}" oninput="app.setProp('color', this.value)">
+                    <label>Colore Contorno</label>
+                    <input type="color" value="${el.stroke}" oninput="app.setProp('stroke', this.value)">
+                    <label>Spessore Contorno</label>
+                    <input type="number" value="${el.strokeWidth}" onblur="app.setProp('strokeWidth', this.value)">
+                </div>
+            `;
+        } else if (el.type === 'shape') {
+            html += `
+                <div class="panel-section">
+                    <h3>Proprietà Forma</h3>
+                    <label>Tipo Forma</label>
+                    <select onchange="app.setProp('shapeType', this.value); app.updatePropsUI()">
+                        <option value="rect" ${el.shapeType === 'rect' ? 'selected' : ''}>Quadrato</option>
+                        <option value="circle" ${el.shapeType === 'circle' ? 'selected' : ''}>Cerchio</option>
+                        <option value="line" ${el.shapeType === 'line' ? 'selected' : ''}>Linea</option>
+                    </select>
+                    <label>Dimensioni (W x H)</label>
+                    <div class="flex-row">
+                        <input type="number" value="${el.w}" onblur="app.setProp('w', this.value)">
+                        <input type="number" value="${el.h}" onblur="app.setProp('h', this.value)">
+                    </div>
+                    ${el.shapeType === 'rect' ? `
+                        <label>Smussatura Angoli</label>
+                        <input type="range" min="0" max="50" value="${el.borderRadius}" oninput="app.onSliderUpdate('borderRadius', this.value)">
+                    ` : ''}
+                    <label>Tipo Riempimento</label>
+                    <select onchange="app.setProp('fillType', this.value); app.updatePropsUI()">
+                        <option value="solid" ${el.fillType === 'solid' ? 'selected' : ''}>Solido</option>
+                        <option value="gradient" ${el.fillType === 'gradient' ? 'selected' : ''}>Sfumato</option>
+                        <option value="none" ${el.fillType === 'none' ? 'selected' : ''}>Nessuno</option>
+                    </select>
+                    ${el.fillType !== 'none' ? `
+                        <label>Colore ${el.fillType === 'gradient' ? 'Principale' : ''}</label>
+                        <input type="color" value="${el.color}" oninput="app.setProp('color', this.value)">
+                        ${el.fillType === 'gradient' ? `<input type="color" value="${el.color2 || '#ffffff'}" oninput="app.setProp('color2', this.value)">` : ''}
+                    ` : ''}
+                    <label>Colore Linea</label>
+                    <input type="color" value="${el.stroke}" oninput="app.setProp('stroke', this.value)">
+                    <label>Spessore Linea</label>
+                    <input type="number" value="${el.strokeWidth}" onblur="app.setProp('strokeWidth', this.value)">
+                </div>
+            `;
+        }
+        html += `<div class="panel-section"><button class="btn btn-danger" style="width:100%" onclick="app.deleteSelected()">Elimina Elemento</button></div>`;
+        container.innerHTML = html;
+    },
 
-  loadImage(src) { return new Promise((resolve) => { const img = new Image(); img.onload = () => resolve(img); img.src = src; }); },
-  handleFontUpload(e) {
-    Array.from(e.target.files).forEach(file => {
-      const name = file.name.split('.')[0];
-      const r = new FileReader();
-      r.onload = (ev) => {
-        const f = new FontFace(name, `url(${ev.target.result})`);
-        f.load().then(loaded => { document.fonts.add(loaded); if (!this.fonts.includes(name)) this.fonts.push(name); this.updatePropertiesUI(); });
-      };
-      r.readAsDataURL(file);
-    });
-  },
+    // Sincronizza slider -> input e canvas (Real-time)
+    onSliderUpdate(prop, val) {
+        const el = this.elements.find(i => i.id === this.selectedId);
+        if (!el) return;
+        const numVal = parseFloat(val);
+        el[prop] = numVal;
+        const nEl = document.getElementById(prop + 'Num');
+        if (nEl) nEl.value = numVal;
+        this.render();
+    },
 
-  exportImage(fmt) { 
-    // Renderizza senza griglia e selezione per l'export
-    this.render(true); 
-    const a = document.createElement('a'); 
-    a.download = `design.${fmt}`; 
-    a.href = this.canvas.toDataURL(fmt === 'jpg' ? 'image/jpeg' : 'image/png'); 
-    a.click(); 
-    // Ripristina la visualizzazione editor
-    this.render();
-  },
-  
-  toggleLeftPanel() { 
-    const p = document.getElementById('leftPanel');
-    const b = document.getElementById('toggleLeftBtn');
-    p.classList.toggle('closed'); 
-    b.innerText = p.classList.contains('closed') ? '▶' : '◀'; 
-  },
-  
-  toggleRightPanel() { 
-    const p = document.getElementById('rightPanel');
-    const b = document.getElementById('toggleRightBtn');
-    p.classList.toggle('closed'); 
-    b.innerText = p.classList.contains('closed') ? '◀' : '▶'; 
-  }
+    // Sincronizza input -> slider e canvas (Solo dopo perdita focus o invio)
+    onNumberBlur(prop, val) {
+        const el = this.elements.find(i => i.id === this.selectedId);
+        if (!el) return;
+        const numVal = parseFloat(val);
+        if (isNaN(numVal)) { this.updatePropsUI(); return; }
+        el[prop] = numVal;
+        const sEl = document.getElementById(prop + 'Slider');
+        if (sEl) sEl.value = numVal;
+        this.render();
+    },
+
+    setProp(prop, val) {
+        const el = this.elements.find(i => i.id === this.selectedId);
+        if (!el) return;
+        el[prop] = (isNaN(val) || prop === 'text' || prop === 'fontFamily' || prop === 'align' || prop === 'shapeType' || prop === 'fillType' || (typeof val === 'string' && val.includes('#'))) ? val : parseFloat(val);
+        this.render();
+    },
+
+    deleteSelected() {
+        this.elements = this.elements.filter(i => i.id !== this.selectedId);
+        this.selectedId = null; this.updatePropsUI(); this.render();
+    },
+
+    exportImage(fmt) {
+        const activeId = this.selectedId; const oldGrid = this.showGrid;
+        this.selectedId = null; this.showGrid = false; this.render();
+        const link = document.createElement('a'); link.download = `export-${Date.now()}.${fmt}`;
+        link.href = this.canvas.toDataURL(fmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.9); link.click();
+        this.selectedId = activeId; this.showGrid = oldGrid; this.render();
+    },
+
+    saveProject() {
+        const data = {
+            bg: this.bgImage ? this.bgThumb : null,
+            canvasW: this.canvas.width, canvasH: this.canvas.height,
+            elements: this.elements.map(({img, ...rest}) => rest),
+            icons: this.icons.map(({img, ...rest}) => rest),
+            showGrid: this.showGrid, gridSize: this.gridSize
+        };
+        const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'project.json'; a.click();
+    },
+
+    async loadProject(e) {
+        const file = e.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            const data = JSON.parse(ev.target.result);
+            if(data.bg) {
+                this.bgThumb = data.bg; this.bgImage = await this.loadImage(data.bg);
+                this.resizeCanvas(data.canvasW, data.canvasH); this.renderBgThumb();
+            }
+            this.showGrid = data.showGrid || false; this.gridSize = data.gridSize || 20;
+            this.icons = [];
+            for(let icon of data.icons) { icon.img = await this.loadImage(icon.src); this.icons.push(icon); }
+            this.renderLibrary();
+            this.elements = [];
+            for(let el of data.elements) { if(el.type === 'icon') el.img = await this.loadImage(el.src); this.elements.push(el); }
+            this.render();
+        };
+        reader.readAsText(file);
+    },
+
+    loadImage(src) { return new Promise(res => { const img = new Image(); img.onload = () => res(img); img.src = src; }); }
 };
-app.init();
+
+window.onload = () => app.init();
 </script>
 </body>
 </html>
