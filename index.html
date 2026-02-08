@@ -17,8 +17,8 @@
         .btn:hover { background: #f9fafb; border-color: #9ca3af; }
         .btn-primary { background: var(--primary); color: white; border: none; }
         .btn-primary:hover { background: #1d4ed8; }
-        .btn-danger { color: var(--danger); }
-        .btn-danger:hover { background: #fef2f2; border-color: var(--danger); }
+        .btn-danger { color: var(--danger); border-color: var(--danger); }
+        .btn-danger:hover { background: #fef2f2; }
 
         .main-content { flex: 1; display: flex; overflow: hidden; position: relative; }
         
@@ -80,10 +80,11 @@
         <div class="flex-row">
             <button class="btn" onclick="app.exportImage('png')">Esporta PNG</button>
             <button class="btn" onclick="app.exportImage('jpg')">Esporta JPG</button>
+            <button class="btn btn-danger" onclick="location.reload()">Reset</button>
         </div>
         <div style="flex:1"></div>
         <button class="btn" onclick="app.saveProject()">Salva Progetto</button>
-        <button class="btn btn-primary" onclick="document.getElementById('loadInput').click()">Carica</button>
+        <button class="btn btn-primary" onclick="document.getElementById('loadInput').click()">Carica Progetto</button>
         <input type="file" id="loadInput" hidden accept=".json" onchange="app.loadProject(event)">
     </div>
 
@@ -505,13 +506,13 @@ const app = {
                 </div>
                 <label>Rotazione (°)</label>
                 <div class="control-group">
-                    <input type="range" id="rotSlider" min="0" max="360" value="${el.rotation}" oninput="app.onSliderUpdate('rotation', this.value)">
-                    <input type="number" id="rotNum" value="${Math.round(el.rotation)}" onblur="app.onNumberBlur('rotation', this.value)">
+                    <input type="range" id="rotationSlider" min="0" max="360" value="${el.rotation}" oninput="app.onSliderUpdate('rotation', this.value)">
+                    <input type="number" id="rotationNum" value="${Math.round(el.rotation)}" onblur="app.onNumberBlur('rotation', this.value)">
                 </div>
                 <label>Opacità</label>
                 <div class="control-group">
-                    <input type="range" id="opacSlider" min="0" max="1" step="0.01" value="${el.opacity || 1}" oninput="app.onSliderUpdate('opacity', this.value)">
-                    <input type="number" id="opacNum" value="${el.opacity || 1}" step="0.01" onblur="app.onNumberBlur('opacity', this.value)">
+                    <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="${el.opacity || 1}" oninput="app.onSliderUpdate('opacity', this.value)">
+                    <input type="number" id="opacityNum" value="${el.opacity || 1}" step="0.01" onblur="app.onNumberBlur('opacity', this.value)">
                 </div>
             </div>
 
@@ -566,7 +567,10 @@ const app = {
                     </div>
                     ${el.shapeType === 'rect' ? `
                         <label>Smussatura Angoli</label>
-                        <input type="range" min="0" max="50" value="${el.borderRadius}" oninput="app.onSliderUpdate('borderRadius', this.value)">
+                        <div class="control-group">
+                            <input type="range" id="borderRadiusSlider" min="0" max="50" value="${el.borderRadius}" oninput="app.onSliderUpdate('borderRadius', this.value)">
+                            <input type="number" id="borderRadiusNum" value="${el.borderRadius}" onblur="app.onNumberBlur('borderRadius', this.value)">
+                        </div>
                     ` : ''}
                     <label>Tipo Riempimento</label>
                     <select onchange="app.setProp('fillType', this.value); app.updatePropsUI()">
@@ -590,7 +594,6 @@ const app = {
         container.innerHTML = html;
     },
 
-    // Sincronizza slider -> input e canvas (Real-time)
     onSliderUpdate(prop, val) {
         const el = this.elements.find(i => i.id === this.selectedId);
         if (!el) return;
@@ -601,7 +604,6 @@ const app = {
         this.render();
     },
 
-    // Sincronizza input -> slider e canvas (Solo dopo perdita focus o invio)
     onNumberBlur(prop, val) {
         const el = this.elements.find(i => i.id === this.selectedId);
         if (!el) return;
