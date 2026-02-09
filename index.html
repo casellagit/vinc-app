@@ -49,7 +49,9 @@
         .icon-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
         .asset-item { border: 1px solid #e5e7eb; border-radius: 4px; padding: 4px; position: relative; cursor: pointer; background: #f9fafb; }
         .asset-item img { width: 100%; aspect-ratio: 1; object-fit: contain; }
+        .font-item { background: #f3f4f6; padding: 8px; border-radius: 4px; font-size: 11px; position: relative; margin-bottom: 4px; border: 1px solid #e5e7eb; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 25px;}
         .delete-btn { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer; z-index: 5; display: flex; align-items: center; justify-content: center; }
+        .font-delete-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: var(--danger); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 8px; cursor: pointer; }
 
         .upload-zone { border: 2px dashed var(--border); padding: 15px; text-align: center; border-radius: 8px; cursor: pointer; color: #6b7280; font-size: 12px; margin-bottom: 10px; transition: all 0.2s; }
         .upload-zone:hover { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
@@ -116,6 +118,7 @@ const app = {
     bgImage: null,
     bgThumb: null,
     icons: [],
+    customFonts: [], // { name: string, data: base64 }
     isDragging: false,
     offset: { x: 0, y: 0 },
     fonts: ['Arial', 'Verdana', 'Georgia', 'Courier New', 'Inter', 'Serif', 'Sans-serif'],
@@ -155,6 +158,7 @@ const app = {
                 <h3>Caratteri</h3>
                 <div class="upload-zone" onclick="document.getElementById('fontInput').click()">Carica Font Personalizzato</div>
                 <input type="file" id="fontInput" hidden accept=".ttf,.otf,.woff,.woff2" onchange="app.handleFontUpload(event)">
+                <div id="customFontsList"></div>
             </div>
             <div class="panel-section">
                 <h3>Libreria Icone</h3>
@@ -172,6 +176,7 @@ const app = {
         `;
         this.renderBgThumb();
         this.renderLibrary();
+        this.renderFontsList();
     },
 
     resizeCanvas(w, h) {
@@ -325,11 +330,19 @@ const app = {
     onEnd() { this.isDragging = false; },
 
     onKeyDown(e) {
-        if (!this.selectedId) return;
         if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
             if (e.key === 'Enter') document.activeElement.blur();
             return;
         }
+        
+        // Clone with Ctrl + D or Cmd + D
+        if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+            e.preventDefault();
+            this.cloneSelected();
+            return;
+        }
+
+        if (!this.selectedId) return;
         const el = this.elements.find(i => i.id === this.selectedId);
         if (!el) return;
         const step = e.shiftKey ? (this.showGrid ? this.gridSize : 10) : 1;
@@ -372,6 +385,24 @@ const app = {
         this.selectedId = id; this.updatePropsUI(); this.render();
     },
 
+    cloneSelected() {
+        if (!this.selectedId) return;
+        const el = this.elements.find(i => i.id === this.selectedId);
+        if (!el) return;
+        // Deep copy of the element excluding the 'img' object which will be handled if needed
+        const { img, ...rest } = el;
+        const clone = JSON.parse(JSON.stringify(rest));
+        clone.id = Date.now() + Math.random();
+        clone.x += 10;
+        clone.y += 10;
+        if (el.type === 'icon') clone.img = el.img;
+        
+        this.elements.push(clone);
+        this.selectedId = clone.id;
+        this.updatePropsUI();
+        this.render();
+    },
+
     handleBgUpload(e) {
         const file = e.target.files[0]; if(!file) return;
         const reader = new FileReader();
@@ -402,13 +433,41 @@ const app = {
         const fontName = file.name.split('.')[0].replace(/\s/g, '-');
         const reader = new FileReader();
         reader.onload = async (ev) => {
-            const fontFace = new FontFace(fontName, `url(${ev.target.result})`);
-            try {
-                const loaded = await fontFace.load(); document.fonts.add(loaded);
-                this.fonts.push(fontName); this.updatePropsUI();
-            } catch (err) { console.error(err); }
+            const data = ev.target.result;
+            await this.registerFont(fontName, data);
+            this.customFonts.push({ name: fontName, data: data });
+            this.fonts.push(fontName);
+            this.renderFontsList();
+            this.updatePropsUI();
         };
         reader.readAsDataURL(file);
+    },
+
+    async registerFont(name, data) {
+        const fontFace = new FontFace(name, `url(${data})`);
+        try {
+            const loaded = await fontFace.load();
+            document.fonts.add(loaded);
+        } catch (err) { console.error("Errore caricamento font:", err); }
+    },
+
+    renderFontsList() {
+        const container = document.getElementById('customFontsList');
+        if(!container) return;
+        container.innerHTML = this.customFonts.map(f => `
+            <div class="font-item">
+                ${f.name}
+                <button class="font-delete-btn" onclick="app.removeFont('${f.name}')">✕</button>
+            </div>
+        `).join('');
+    },
+
+    removeFont(name) {
+        this.customFonts = this.customFonts.filter(f => f.name !== name);
+        this.fonts = this.fonts.filter(f => f !== name);
+        this.renderFontsList();
+        this.updatePropsUI();
+        this.render();
     },
 
     handleIconLibrary(event) {
@@ -590,7 +649,14 @@ const app = {
                 </div>
             `;
         }
-        html += `<div class="panel-section"><button class="btn btn-danger" style="width:100%" onclick="app.deleteSelected()">Elimina Elemento</button></div>`;
+        html += `
+            <div class="panel-section">
+                <div class="flex-row">
+                    <button class="btn btn-primary" style="flex:1" onclick="app.cloneSelected()">Clona</button>
+                    <button class="btn btn-danger" style="flex:1" onclick="app.deleteSelected()">Elimina</button>
+                </div>
+                <div class="shortcut-hint" style="text-align:center; margin-top:8px">Scorciatoia: Ctrl + D per clonare</div>
+            </div>`;
         container.innerHTML = html;
     },
 
@@ -641,6 +707,7 @@ const app = {
             canvasW: this.canvas.width, canvasH: this.canvas.height,
             elements: this.elements.map(({img, ...rest}) => rest),
             icons: this.icons.map(({img, ...rest}) => rest),
+            customFonts: this.customFonts,
             showGrid: this.showGrid, gridSize: this.gridSize
         };
         const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
@@ -653,16 +720,27 @@ const app = {
         const reader = new FileReader();
         reader.onload = async (ev) => {
             const data = JSON.parse(ev.target.result);
+            
+            // Ripristino font prima di caricare gli elementi
+            this.customFonts = data.customFonts || [];
+            this.fonts = ['Arial', 'Verdana', 'Georgia', 'Courier New', 'Inter', 'Serif', 'Sans-serif'];
+            for(let f of this.customFonts) {
+                await this.registerFont(f.name, f.data);
+                this.fonts.push(f.name);
+            }
+            this.renderFontsList();
+
             if(data.bg) {
                 this.bgThumb = data.bg; this.bgImage = await this.loadImage(data.bg);
                 this.resizeCanvas(data.canvasW, data.canvasH); this.renderBgThumb();
             }
             this.showGrid = data.showGrid || false; this.gridSize = data.gridSize || 20;
             this.icons = [];
-            for(let icon of data.icons) { icon.img = await this.loadImage(icon.src); this.icons.push(icon); }
+            for(let icon of (data.icons || [])) { icon.img = await this.loadImage(icon.src); this.icons.push(icon); }
             this.renderLibrary();
             this.elements = [];
             for(let el of data.elements) { if(el.type === 'icon') el.img = await this.loadImage(el.src); this.elements.push(el); }
+            this.updatePropsUI();
             this.render();
         };
         reader.readAsText(file);
