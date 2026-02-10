@@ -259,6 +259,37 @@ const app = {
             this.ctx.fillStyle = el.color; this.ctx.fillText(line, xOffset, y);
         });
     },
+drawTextScaled(ctx, el, scale) {
+    const fontSize = el.fontSize * el.scale * scale;
+    ctx.font = `${el.fontWeight || 'normal'} ${fontSize}px ${el.fontFamily}`;
+    ctx.textBaseline = 'middle';
+
+    const lines = el.text.split('\n');
+    const lineHeight = fontSize * (el.lineHeight || 1.2);
+    const totalH = lines.length * lineHeight;
+
+    lines.forEach((line, i) => {
+        const y = (i * lineHeight) - (totalH / 2) + (lineHeight / 2);
+
+        let x = 0;
+        if (el.align === 'left') { ctx.textAlign = 'left'; x = -this.getBounds(el).w * scale / 2; }
+        else if (el.align === 'right') { ctx.textAlign = 'right'; x = this.getBounds(el).w * scale / 2; }
+        else ctx.textAlign = 'center';
+
+        if (el.strokeWidth > 0) {
+            ctx.strokeStyle = el.stroke;
+            ctx.lineWidth = el.strokeWidth * el.scale * scale;
+            ctx.strokeText(line, x, y);
+        }
+
+        ctx.fillStyle = el.color;
+        ctx.fillText(line, x, y);
+    });
+},
+
+
+
+
 
     drawShape(el) {
         const w = el.w * el.scale; const h = el.h * el.scale;
@@ -280,6 +311,44 @@ const app = {
             this.ctx.stroke();
         }
     },
+drawShapeScaled(ctx, el, scale) {
+    const w = el.w * el.scale * scale;
+    const h = el.h * el.scale * scale;
+
+    ctx.beginPath();
+    if (el.shapeType === 'rect') {
+        const r = (el.borderRadius || 0) * el.scale * scale;
+        ctx.roundRect(-w/2, -h/2, w, h, r);
+    } 
+    else if (el.shapeType === 'circle') {
+        ctx.arc(0, 0, w/2, 0, Math.PI * 2);
+    } 
+    else if (el.shapeType === 'line') {
+        ctx.moveTo(-w/2, 0);
+        ctx.lineTo(w/2, 0);
+    }
+
+    if (el.shapeType !== 'line' && el.fillType !== 'none') {
+        if (el.fillType === 'gradient') {
+            const grad = ctx.createLinearGradient(-w/2, 0, w/2, 0);
+            grad.addColorStop(0, el.color);
+            grad.addColorStop(1, el.color2 || '#ffffff');
+            ctx.fillStyle = grad;
+        } else ctx.fillStyle = el.color;
+        ctx.fill();
+    }
+
+    if (el.strokeWidth > 0) {
+        ctx.strokeStyle = el.stroke;
+        ctx.lineWidth = el.strokeWidth * el.scale * scale;
+        ctx.stroke();
+    }
+},
+
+
+
+
+
 
     getBounds(el) {
         if (el.type === 'icon' || el.type === 'shape') return { w: el.w * el.scale, h: el.h * el.scale };
@@ -694,12 +763,59 @@ const app = {
     },
 
     exportImage(fmt) {
-        const activeId = this.selectedId; const oldGrid = this.showGrid;
-        this.selectedId = null; this.showGrid = false; this.render();
-        const link = document.createElement('a'); link.download = `export-${Date.now()}.${fmt}`;
-        link.href = this.canvas.toDataURL(fmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.9); link.click();
-        this.selectedId = activeId; this.showGrid = oldGrid; this.render();
-    },
+    const DPI = 300;
+    const BASE_DPI = 96;
+    const scale = DPI / BASE_DPI;
+
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = this.canvas.width * scale;
+    exportCanvas.height = this.canvas.height * scale;
+
+    const ctx = exportCanvas.getContext('2d');
+
+    // sfondo
+    if (this.bgImage) {
+        ctx.drawImage(
+            this.bgImage,
+            0, 0,
+            exportCanvas.width,
+            exportCanvas.height
+        );
+    } else {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    }
+
+    this.elements.forEach(el => {
+        ctx.save();
+
+        ctx.translate(el.x * scale, el.y * scale);
+        ctx.rotate(el.rotation * Math.PI / 180);
+        ctx.globalAlpha = el.opacity ?? 1;
+
+        if (el.type === 'text') {
+            this.drawTextScaled(ctx, el, scale);
+        }
+
+        else if (el.type === 'icon') {
+            const w = el.w * el.scale * scale;
+            const h = el.h * el.scale * scale;
+            ctx.drawImage(el.img, -w / 2, -h / 2, w, h);
+        }
+
+        else if (el.type === 'shape') {
+            this.drawShapeScaled(ctx, el, scale);
+        }
+
+        ctx.restore();
+    });
+
+    const mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
+    const link = document.createElement('a');
+    link.download = `export_300dpi.${fmt}`;
+    link.href = exportCanvas.toDataURL(mime, fmt === 'jpg' ? 1.0 : undefined);
+    link.click();
+},
 
     saveProject() {
         const data = {
