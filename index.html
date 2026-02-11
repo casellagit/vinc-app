@@ -74,6 +74,7 @@
         input:checked + .slider:before { transform: translateX(20px); }
 
         .shortcut-hint { font-size: 10px; color: #9ca3af; margin-top: 4px; font-style: italic; }
+        .canvas-wrapper { transition: transform 0.2s ease-out; transform-origin: center center; }
     </style>
 </head>
 <body>
@@ -86,6 +87,14 @@
             <button class="btn btn-danger" onclick="location.reload()">Reset</button>
         </div>
         <div style="flex:1"></div>
+        
+        <div class="flex-row" style="background: #f3f4f6; padding: 4px 8px; border-radius: 6px; margin-right: 12px;">
+    <label style="margin:0; font-size:11px">Zoom:</label>
+    <button class="btn" style="padding:2px 8px" onclick="app.updateZoom(-0.1)">-</button>
+    <span id="zoomVal" style="font-size:12px; min-width:40px; text-align:center">100%</span>
+    <button class="btn" style="padding:2px 8px" onclick="app.updateZoom(0.1)">+</button>
+        </div>
+
         <button class="btn" onclick="app.saveProject()">Salva Progetto</button>
         <button class="btn btn-primary" onclick="document.getElementById('loadInput').click()">Carica Progetto</button>
         <input type="file" id="loadInput" hidden accept=".json" onchange="app.loadProject(event)">
@@ -125,6 +134,14 @@ const app = {
     fonts: ['Arial', 'Verdana', 'Georgia', 'Courier New', 'Inter', 'Serif', 'Sans-serif'],
     showGrid: false,
     gridSize: 20,
+       currentZoom: 1,
+    updateZoom(delta) {
+        this.currentZoom = Math.min(Math.max(0.1, this.currentZoom + delta), 3);
+        const wrapper = document.querySelector('.canvas-wrapper');
+        wrapper.style.transform = `scale(${this.currentZoom})`;
+        document.getElementById('zoomVal').innerText = Math.round(this.currentZoom * 100) + '%';
+    },
+
 
     init() {
         this.canvas = document.getElementById('editorCanvas');
